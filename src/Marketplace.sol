@@ -12,7 +12,6 @@ contract Marketplace is Ownable, ReentrancyGuard {
         uint256 amount;      // amount of the bid
     }
 
-
     uint256 public feePercent;
     address public feeRecipient;
     uint256 public maxFeePercent = 1000; // 10% in basis points
@@ -22,6 +21,14 @@ contract Marketplace is Ownable, ReentrancyGuard {
     event FeeRecipientUpdated(address newRecipient);
     event BidPlaced(address indexed nft, uint256 indexed tokenId, address indexed bidder, uint256 amount);
     event BidCancelled(address indexed nft, uint256 indexed tokenId, address indexed bidder, uint256 amount);
+    event BidAccepted(
+        address indexed nft,
+        uint256 indexed tokenId,
+        address indexed seller,
+        address buyer,
+        uint256 price,
+        uint256 fee
+    );
 
     constructor(uint256 feePercent_, address feeRecipient_) Ownable(msg.sender) {
         require(feePercent_ <= maxFeePercent, "Fee too high");
@@ -79,4 +86,46 @@ contract Marketplace is Ownable, ReentrancyGuard {
         // 5. Emitimos el evento
         emit BidCancelled(nft_, tokenId_, msg.sender, bid_.amount);
     }
+
+    function acceptBid(address nft_, uint256 tokenId_, address bidder_) external nonReentrant {
+        // 1. Validar que el ofertante haya hecho una oferta
+        Bid memory bid_ = bids[nft_][tokenId_][bidder_];
+        require(bid_.amount > 0, "No active bid");
+
+        // 2. Validar que quien llama sea el dueño del NFT
+        IERC721 nftContract = IERC721(nft_);
+        address owner_ = nftContract.ownerOf(tokenId_);
+        require(owner_ == msg.sender, "Caller is not NFT owner");
+
+        // 3. Validar que el contrato esté aprobado para transferir el NFT
+        require(
+            nftContract.getApproved(tokenId_) == address(this) ||
+            nftContract.isApprovedForAll(owner_, address(this)),
+            "Marketplace not approved"
+        );
+
+        // 4. Calcular fee y neto
+        uint256 feeAmount_ = (bid_.amount * feePercent) / 10_000;
+        uint256 netAmount_ = bid_.amount - feeAmount_;
+
+        // 5. Eliminar la oferta
+        delete bids[nft_][tokenId_][bidder_];
+
+        // 6. Transferir NFT al comprador
+        nftContract.safeTransferFrom(owner_, bidder_, tokenId_);
+
+        // 7. Enviar ETH al vendedor
+        (bool sentSeller, ) = owner_.call{value: netAmount_}("");
+        require(sentSeller, "ETH transfer to seller failed");
+
+        // 8. Enviar fee al feeRecipient
+        if (feeAmount_ > 0) {
+            (bool sentFee, ) = feeRecipient.call{value: feeAmount_}("");
+            require(sentFee, "ETH transfer to feeRecipient failed");
+        }
+
+        // 9. Emitir evento
+        emit BidAccepted(nft_, tokenId_, owner_, bidder_, bid_.amount, feeAmount_);
+    }
+
 }
