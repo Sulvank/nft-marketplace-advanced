@@ -1,7 +1,3 @@
-Aquí tienes el contenido completo del `README.md` listo para copiar y pegar como un solo bloque continuo:
-
----
-
 ````markdown
 # 🛒 NFT Offers Marketplace
 
