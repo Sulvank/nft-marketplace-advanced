@@ -1,4 +1,3 @@
-````markdown
 # 🛒 NFT Offers Marketplace
 
 **NFT Offers Marketplace** is a minimal smart contract built with Solidity and Foundry that enables users to place ETH bids on NFTs across multiple ERC721 collections. It supports offer placement, cancellation, and owner-side acceptance with fee processing. This contract demonstrates a powerful backend for an NFT market without the need for listings.
@@ -36,7 +35,7 @@
 ```bash
 git clone https://github.com/yourusername/nft-offers-marketplace.git
 cd nft-offers-marketplace
-````
+```
 
 ### 2️⃣ Install Foundry
 
